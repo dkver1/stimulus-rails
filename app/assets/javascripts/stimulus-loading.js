@@ -1,7 +1,7 @@
 // FIXME: es-module-shim won't shim the dynamic import without this explicit import
 import "@hotwired/stimulus"
 
-const controllerAttribute = "data-controller"
+const defaultControllerAttribute = "data-controller"
 
 // Eager load all controllers registered beneath the `under` path in the import map to the passed application instance.
 export function eagerLoadControllersFrom(under, application) {
@@ -30,21 +30,22 @@ function registerControllerFromPath(path, under, application) {
 
 // Lazy load controllers registered beneath the `under` path in the import map to the passed application instance.
 export function lazyLoadControllersFrom(under, application, element = document) {
-  lazyLoadExistingControllers(under, application, element)
-  lazyLoadNewControllers(under, application, element)
+  const controllerAttribute = application.schema.controllerAttribute || defaultControllerAttribute
+  lazyLoadExistingControllers(under, application, element, controllerAttribute)
+  lazyLoadNewControllers(under, application, element, controllerAttribute)
 }
 
-function lazyLoadExistingControllers(under, application, element) {
-  queryControllerNamesWithin(element).forEach(controllerName => loadController(controllerName, under, application))
+function lazyLoadExistingControllers(under, application, element, controllerAttribute) {
+  queryControllerNamesWithin(element, controllerAttribute).forEach(controllerName => loadController(controllerName, under, application))
 }
 
-function lazyLoadNewControllers(under, application, element) {
+function lazyLoadNewControllers(under, application, element, controllerAttribute) {
   new MutationObserver((mutationsList) => {
     for (const { attributeName, target, type } of mutationsList) {
       switch (type) {
         case "attributes": {
           if (attributeName == controllerAttribute && target.getAttribute(controllerAttribute)) {
-            extractControllerNamesFrom(target).forEach(controllerName => loadController(controllerName, under, application))
+            extractControllerNamesFrom(target, controllerAttribute).forEach(controllerName => loadController(controllerName, under, application))
           }
         }
 
@@ -56,11 +57,11 @@ function lazyLoadNewControllers(under, application, element) {
   }).observe(element, { attributeFilter: [controllerAttribute], subtree: true, childList: true })
 }
 
-function queryControllerNamesWithin(element) {
-  return Array.from(element.querySelectorAll(`[${controllerAttribute}]`)).map(extractControllerNamesFrom).flat()
+function queryControllerNamesWithin(element, controllerAttribute) {
+  return Array.from(element.querySelectorAll(`[${controllerAttribute}]`)).map((element) => extractControllerNamesFrom(element, controllerAttribute)).flat()
 }
 
-function extractControllerNamesFrom(element) {
+function extractControllerNamesFrom(element, controllerAttribute) {
   return element.getAttribute(controllerAttribute).split(/\s+/).filter(content => content.length)
 }
 
